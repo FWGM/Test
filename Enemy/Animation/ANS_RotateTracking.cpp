@@ -52,3 +52,17 @@ void UANS_RotateTracking::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequ
 	FRotator NewRotation = UKismetMathLibrary::RInterpTo(CurrentRotation, TargetRotation, FrameDeltaTime, RotationSpeed);
 	Enemy->SetActorRotation(NewRotation);
 }
+
+void UANS_RotateTracking::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
+{
+	AEnemyBase* Enemy = Cast<AEnemyBase>(MeshComp->GetOwner());
+	if (Enemy)
+	{
+		AAIController* AIController = Enemy->GetController<AAIController>();
+		if (AIController && AIController->GetBlackboardComponent())
+		{
+			// 공격 추적이 끝났으므로 락을 해제하여 BT가 다시 판단하게 함
+			AIController->GetBlackboardComponent()->SetValueAsBool(BBKey::IsActionLocked, false);
+		}
+	}
+}
