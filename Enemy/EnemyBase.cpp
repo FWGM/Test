@@ -32,8 +32,6 @@ void AEnemyBase::PostInitializeComponents()
 	{
 		StatComponent->OnDead.AddDynamic(this, &AEnemyBase::OnDeath);
 	}
-
-	OnAnimationFinished.AddUObject(this, &AEnemyBase::OnEnemyAttackAniFinished);
 }
 
 void AEnemyBase::PossessedBy(AController* NewController)
@@ -116,6 +114,7 @@ void AEnemyBase::UpdateMoveSpeed(EEnemyState NewState)
 {
 	if (GetCharacterMovement() == nullptr)
 	{
+
 		return;
 	}
 
@@ -163,6 +162,11 @@ void AEnemyBase::OnEnemyAttackAniFinished(EEnemyState NewState)
 	{
 		SetState(NewState);
 	}
+
+	if (OnAttackAnimationFinished.IsBound())
+	{
+		OnAttackAnimationFinished.Broadcast(NewState);
+	}
 }
 
 void AEnemyBase::OnDeath()
@@ -191,20 +195,8 @@ void AEnemyBase::SetState(EEnemyState NewState)
 	EEnemyState OldState = CurrentState;
 	CurrentState = NewState;
 
-	UpdateMoveSpeed(CurrentState);
 	UpdateBlackBoardState();
-
-	if (AEnemyAIController* AIController = Cast<AEnemyAIController>(GetController()))
-	{
-		UBlackboardComponent* BBComponent = AIController->GetBlackboardComponent();
-		if (BBComponent)
-		{
-			// 다음 행위 중에는 BT 막기
-			bool bIsActionLocked = (CurrentState == EEnemyState::Attack || CurrentState == EEnemyState::Hit || CurrentState == EEnemyState::Dead);
-			BBComponent->SetValueAsBool(BBKey::IsActionLocked, bIsActionLocked);
-			UpdateMoveSpeed(CurrentState);
-		}
-	}
+	UpdateMoveSpeed(CurrentState);
 
 	OnStateChanged.Broadcast(OldState, NewState);
 }

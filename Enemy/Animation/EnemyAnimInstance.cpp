@@ -1,9 +1,26 @@
 #include "Enemy/Animation/EnemyAnimInstance.h"
+#include "Tables/BATableManager.h"
+#include "Tables/MonsterRows.h"
 
 void UEnemyAnimInstance::NativeInitializeAnimation()
 {
     Super::NativeInitializeAnimation();
     Owner = Cast<AEnemyBase>(TryGetPawnOwner());
+
+	UBATableManager* TableManager = UBATableManager::Get(this);
+	if (TableManager == nullptr)
+	{
+		return;
+	}
+
+	int32 MonsterTid = Owner->GetMonsterTid();
+	const FMonsterRows* MonsterRow = TableManager->FindMonster(MonsterTid);
+	if (MonsterRow == nullptr)
+	{
+		return;
+	}
+
+	MoveSpeed = static_cast<float>(MonsterRow->MoveSpeed);
 }
 
 void UEnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
@@ -17,10 +34,7 @@ void UEnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
     if (Owner)
     {
-        // [Fact] 물리 엔진의 실제 속도를 변수에 반영
         MoveSpeed = Owner->GetVelocity().Size();
-
-        // [Fact] C++에서 관리하는 상태값을 애니메이션 변수로 동기화
         CurrentState = Owner->GetCurrentState();
     }
 }
