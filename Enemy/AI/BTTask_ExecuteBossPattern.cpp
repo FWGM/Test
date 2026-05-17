@@ -2,12 +2,12 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "AIController.h"
 #include "Constants/BAProjectConstant.h"
+#include "Enemy/Boss.h"
 
 UBTTask_ExecuteBossPattern::UBTTask_ExecuteBossPattern()
 {
 	NodeName = TEXT("ExecuteBossPattern");
-
-	bCreateNodeInstance = true; // Node Instance¸¦ Share, ¿©·¯ AI°¡ °°Àº Task¸¦ »ç¿ë ÇÒ ¼ö ÀÖ¾î¼­
+	bCreateNodeInstance = true; 
 }
 
 EBTNodeResult::Type UBTTask_ExecuteBossPattern::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -32,19 +32,24 @@ EBTNodeResult::Type UBTTask_ExecuteBossPattern::ExecuteTask(UBehaviorTreeCompone
 
 	CachedOwnerComp = &OwnerComp;
 
-	int32 PatternIndex = BBComp->GetValueAsInt(BBKey::SelectedPatternIndex);
+	int32 PatternTid = BBComp->GetValueAsInt(BBKey::SelectedPatternTid);
 
-	const auto& Patterns = Boss->GetBossPatterns();
-	if (Patterns.IsValidIndex(PatternIndex))
+	if (PatternTid != 0)
 	{
+		// ì• ë‹ˆë©”ì´ì…˜ ì¢…ë£Œ ë¸ë¦¬ê²Œì´íŠ¸ ì—°ê²°
 		Boss->OnAttackAnimationFinished.RemoveAll(this);
-		Boss->OnAttackAnimationFinished.AddUObject(this, &UBTTask_ExecuteBossPattern::OnAttackFinishedCallback);
+		TWeakObjectPtr<UBehaviorTreeComponent> WeakOwnerComp(&OwnerComp);
 
-		int32 SelectedTid = Patterns[PatternIndex].Tid;
-		float CoolTime = Patterns[PatternIndex].CoolTime;
+		Boss->OnAttackAnimationFinished.AddLambda([this, WeakOwnerComp](EEnemyState NewState)
+		{
+			if (WeakOwnerComp.IsValid())
+			{
+				FinishLatentTask(*WeakOwnerComp, EBTNodeResult::Succeeded);
+			}
+		});
 
-		Boss->ExecuteBossPattern(SelectedTid);
-		Boss->StartPatternCooldown(SelectedTid, CoolTime);
+		Boss->ExecuteBossPattern(PatternTid);
+
 		return EBTNodeResult::InProgress;
 	}
 

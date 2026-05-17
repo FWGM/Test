@@ -1,4 +1,9 @@
 #include "Enemy/Monster.h"
+#include "Tables/BATableManager.h"
+#include "Tables/MonsterRows.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 
 AMonster::AMonster()
 {
@@ -14,15 +19,33 @@ void AMonster::BeginPlay()
 	}
 }
 
+void AMonster::InitializeFromTable(int32 InTid)
+{
+	Super::InitializeFromTable(InTid);
+
+	UBATableManager* TableManager = UBATableManager::Get(this);
+	if (!TableManager) return;
+
+	const FMonsterRows* Row = TableManager->FindMonster(InTid);
+	if (!Row) return;
+
+	if (!Row->MeshPath.IsEmpty())
+	{
+		USkeletalMesh* LoadedMesh = Cast<USkeletalMesh>(StaticLoadObject(USkeletalMesh::StaticClass(), nullptr, *Row->MeshPath));
+		if (LoadedMesh)
+		{
+			GetMesh()->SetSkeletalMesh(LoadedMesh);
+		}
+	}
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->bOrientRotationToMovement = true;
+		MoveComp->RotationRate = FRotator(0.0f, 360.0f, 0.0f);
+	}
+}
+
 void AMonster::OnDeath()
 {
 	Super::OnDeath();
-	//// [Opinion] 일반 몬스터는 단순한 소멸 이펙트만 재생
-	//if (DefaultDeathMontage)
-	//{
-	//	PlayAnimMontage(DefaultDeathMontage);
-	//}
-
-	//// 몬스터는 사망 시 단순히 경험치나 아이템 드랍 로직 처리
-	//DropLoot();
 }

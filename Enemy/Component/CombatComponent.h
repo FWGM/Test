@@ -6,6 +6,7 @@
 
 class UAnimMontage;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHitDetected, AActor*, Victim, const FHitResult&, HitResult);
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class BAPROJECT_API UCombatComponent : public UActorComponent
 {
@@ -14,36 +15,62 @@ class BAPROJECT_API UCombatComponent : public UActorComponent
 public:
 	UCombatComponent();
 
-	UFUNCTION(BlueprintCallable, Category = "Combat") // 몽타주 사용
+	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void ExecuteAttack(UAnimMontage* AttackMontage, float PlayRate = 1.0f);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void CheckAnimNotifyHitStart(float InRadius, float InDamage, FName InSocketName = TEXT("Muzzle"));
+	void StartHitCheck(float InRadius, float InDamage, FName InSocketName = TEXT("Muzzle"));
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void CheckAnimNotifyHitEnd();
+	void StartHitCheckDefault();
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void SetWeaponCollisionActive(bool bActive);
+	void EndHitCheck();
+
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void SetAttackData(float InRadius, float InDamage, FName InSocketName);
+
+	void TriggerHitStop(float Duration);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat|VFX")
+	void SpawnShockwave(FVector Location, float Scale = 1.0f);
 
 protected:
-	void CheckHit();
-
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	void ProcessHitCheck(); // 이전 프레임 소켓 위치와 현재 위치 사이를 스윕
+
+	void ApplyDamage(AActor* Victim, const FHitResult& HitResult);
+
+public:
+	UPROPERTY(BlueprintAssignable)
+	FOnHitDetected OnHitDetected;
+
 protected:
-	UPROPERTY()
-	bool bIsHitChecking;
+	UPROPERTY(EditAnywhere, Category = "Combat|VFX")
+	TObjectPtr<class UNiagaraSystem> ShockwaveSystem;
+
+	UPROPERTY(EditAnywhere, Category = "Combat|VFX")
+	TObjectPtr<class UNiagaraSystem> DistortionSystem;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Debug")
+	bool bShowDebugTrace = false;
 
 	UPROPERTY()
-	float CurrentRadius;
+	bool bIsHitChecking = false;
 
 	UPROPERTY()
-	float CurrentDamage;
+	float CurrentRadius = 50.0f;
+
+	UPROPERTY()
+	float CurrentDamage = 10.0f;
 
 	UPROPERTY()
 	FName CurrentSocketName;
 
 	UPROPERTY()
-	TArray<AActor*> HitActors;
+	FVector PrevSocketLocation;
+
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> HitActors;
 };
