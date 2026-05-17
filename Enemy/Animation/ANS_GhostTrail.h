@@ -18,16 +18,18 @@ public:
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
+	void SpawnGhost(USkeletalMeshComponent* SourceMesh);
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "Ghost")
 	float SpawnInterval = 0.05f;
 
 	UPROPERTY(EditAnywhere, Category = "Ghost")
-	TObjectPtr<UMaterialInterface> GhostMaterial;
+	float GhostLifeTime = 0.5f;
 
 	UPROPERTY(EditAnywhere, Category = "Ghost")
-	float GhostLifeTime = 0.5f;
+	TObjectPtr<UMaterialInterface> GhostMaterial;
+
 
 private:
 	float LastSpawnTime = 0.0f;

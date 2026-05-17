@@ -29,9 +29,7 @@ EBTNodeResult::Type UBTTask_SelectPattern_Utility::ExecuteTask(UBehaviorTreeComp
 		return EBTNodeResult::Failed;
 	}
 
-	/** Boss 내부의 UtilityAI를 통해 최적의 패턴 Tid를 선택 */
 	int32 SelectedPatternTid = Boss->ChooseBestPattern();
-
 	if (SelectedPatternTid != 0)
 	{
 		BBComp->SetValueAsInt(BBKey::SelectedPatternTid, SelectedPatternTid);

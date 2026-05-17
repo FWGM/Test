@@ -73,19 +73,16 @@ void ABoss::InitializeFromTable(int32 InTid)
 	Super::InitializeFromTable(InTid);
 
 	UBATableManager* TableManager = UBATableManager::Get(this);
-	if (!TableManager) return;
+	if (TableManager == nullptr)
+	{
+		return;
+	}
 
 	const FMonsterRows* Row = TableManager->FindMonster(InTid);
-	if (!Row) return;
-
-	// 보스 전용 초기화: 메쉬 로드 및 패턴 로드
-	if (!Row->MeshPath.IsEmpty())
+	if (Row == nullptr)
 	{
-		USkeletalMesh* LoadedMesh = Cast<USkeletalMesh>(StaticLoadObject(USkeletalMesh::StaticClass(), nullptr, *Row->MeshPath));
-		if (LoadedMesh)
-		{
-			GetMesh()->SetSkeletalMesh(LoadedMesh);
-		}
+		UE_LOG(LogTemp, Warning, TEXT("Boss InitializeFromTable: No MonsterRow found for Tid %d"), InTid);
+		return;
 	}
 
 	LoadBossPatterns(Row->StageType);
@@ -135,55 +132,67 @@ float ABoss::CalculatePatternScore(const FBossAttackData& PatternData, AActor* T
 	}
 
 	// 쿨타임 체크
-	if (!IsPatternAvailable(PatternData.Tid))
+	if (IsPatternAvailable(PatternData.Tid) == false)
 	{
 		return 0.0f;
 	}
 
 	// 컨디션 체크
-	bool bConditionMet = true;
-	int32 RandVal = FMath::RandRange(1, 10000);
-	
-	if (PatternData.ConditionType != 0)
+	const float Distance = FVector::Dist(GetActorLocation(), Target->GetActorLocation());
+	const float RandVal = FMath::RandRange(1, 10000);
+
+	float HPRatio = 1.0f;
+	if (StatComponent)
 	{
-		// 기본 확률 체크 (Var1)
+		HPRatio = StatComponent->GetCurrentHP() / StatComponent->GetMaxHP();
+	}
+
+	bool bConditionMet = true;
+	switch (PatternData.ConditionType)
+	{
+	case 1: // 1. Pure probability, Var1 = 확률
 		if (RandVal > PatternData.Var1)
 		{
 			bConditionMet = false;
 		}
+		break;
 
-		if (bConditionMet)
+	case 2: // 2. HP + probability, Var1 = 확률, Var2 = HP %
+		if (RandVal > PatternData.Var1)
 		{
-			float HPRatio = 1.0f;
-			if (StatComponent)
-			{
-				HPRatio = StatComponent->GetCurrentHP() / StatComponent->GetMaxHP();
-			}
-
-			switch (PatternData.ConditionType)
-			{
-			case 2: // HP Ratio 이하 (Var2: %)
-				if (HPRatio * 100.0f > PatternData.Var2)
-				{
-					bConditionMet = false;
-				}
-				break;
-			case 3: // HP Ratio 이상 (Var2: %)
-				if (HPRatio * 100.0f < PatternData.Var2)
-				{
-					bConditionMet = false;
-				}
-				break;
-			case 4: // 페이즈 체크 (Var2 ~ Var3)
-				if (CurrentPhase < PatternData.Var2 || CurrentPhase > PatternData.Var3)
-				{
-					bConditionMet = false;
-				}
-				break;
-			default:
-				break;
-			}
+			bConditionMet = false;
+			break;
 		}
+
+		if (HPRatio * 100.0f > PatternData.Var2)
+		{
+			bConditionMet = false;
+		}
+		break;
+
+	case 3: // 3. Distance + probability, Var1 = 확률, Var2 = 거리
+		if (RandVal > PatternData.Var1)
+		{
+			bConditionMet = false;
+			break;
+		}
+
+		if (Distance > PatternData.Var2)
+		{
+			bConditionMet = false;
+		}
+		break;
+
+	case 4: // 4. Phase range, Var2 ~ Var3
+		if (CurrentPhase < PatternData.Var2 || CurrentPhase > PatternData.Var3)
+		{
+			bConditionMet = false;
+		}
+		break;
+
+	default:
+		bConditionMet = false;
+		break;
 	}
 
 	if (!bConditionMet)
@@ -191,29 +200,28 @@ float ABoss::CalculatePatternScore(const FBossAttackData& PatternData, AActor* T
 		return 0.0f;
 	}
 
-	float FinalScore = PatternData.Weight * PatternData.ScoreMultiplier;
-
-	float Distance = FVector::Dist(GetActorLocation(), Target->GetActorLocation());
-	
 	// 거리 점수 (IdealRange 이하일 때 가장 높음)
+	float FinalScore = PatternData.Weight * PatternData.ScoreMultiplier;
 	float DistanceScore = 1.0f;
-	if (Distance > PatternData.IdealRange)
+
+	if (PatternData.IdealRange > 0.0f)
 	{
-		DistanceScore = FMath::Max(0.0f, 1.0f - (Distance - PatternData.IdealRange) / 1000.0f);
+		if (Distance > PatternData.IdealRange)
+		{
+			DistanceScore = FMath::Max(0.0f,1.0f - (Distance - PatternData.IdealRange) / 1000.0f);
+		}
 	}
 	FinalScore *= DistanceScore;
 
 	// 각도 점수
 	FVector ToTarget = (Target->GetActorLocation() - GetActorLocation()).GetSafeNormal();
 	float Dot = FVector::DotProduct(GetActorForwardVector(), ToTarget);
-	float Angle = FMath::RadiansToDegrees(FMath::Acos(Dot));
 
-	float AngleScore = 1.0f;
+	float Angle = FMath::RadiansToDegrees(FMath::Acos(Dot));
 	if (Angle > PatternData.AttackAngle)
 	{
-		AngleScore = 0.2f; // 각도가 너무 큼
+		FinalScore *= 0.2f;
 	}
-	FinalScore *= AngleScore;
 
 	return FinalScore;
 }
@@ -308,7 +316,13 @@ void ABoss::LoadBossPatterns(int32 StageType)
 
 bool ABoss::IsPatternAvailable(int32 PatternTid) const
 {
-	return PatternCooldownMap.Contains(PatternTid) == false;
+	const float* Cooldown = PatternCooldownMap.Find(PatternTid);
+	if (Cooldown == nullptr)
+	{
+		return true;
+	}
+
+	return *Cooldown <= 0.0f;
 }
 
 void ABoss::StartPatternCooldown(int32 PatternTid, float CoolTime)

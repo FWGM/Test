@@ -76,12 +76,20 @@ void AEnemyBase::InitializeFromTable(int32 InTid)
 
 		if (GetCharacterMovement())
 		{
+			GetCharacterMovement()->bOrientRotationToMovement = true;
+			GetCharacterMovement()->RotationRate = FRotator(0.0f, 360.0f, 0.0f);
 			GetCharacterMovement()->MaxWalkSpeed = static_cast<float>(MonsterRow->MoveSpeed);
 		}
 
 		if (AEnemyAIController* AIController = Cast<AEnemyAIController>(GetController()))
 		{
 			AIController->InitializeAI(MonsterTid, this);
+		}
+
+		USkeletalMesh* LoadedMesh = Cast<USkeletalMesh>(StaticLoadObject(USkeletalMesh::StaticClass(), nullptr, *MonsterRow->MeshPath));
+		if (LoadedMesh)
+		{
+			GetMesh()->SetSkeletalMesh(LoadedMesh);
 		}
 	}
 }

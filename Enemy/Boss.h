@@ -72,13 +72,10 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 	virtual void PostInitializeComponents() override;
 
-	void LoadBossPatterns(int32 StageType);
-	
-	float CalculatePatternScore(const FBossAttackData& PatternData, AActor* Target);
-	
-	void StartPatternCooldown(int32 PatternTid, float CoolTime);
-
 private:
+	void LoadBossPatterns(int32 StageType);
+	float CalculatePatternScore(const FBossAttackData& PatternData, AActor* Target);	
+	void StartPatternCooldown(int32 PatternTid, float CoolTime);
 	bool IsPatternAvailable(int32 PatternTid) const;
 
 protected:

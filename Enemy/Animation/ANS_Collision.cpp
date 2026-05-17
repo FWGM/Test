@@ -20,7 +20,7 @@ void UANS_Collision::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequence
 	UCombatComponent* CombatComp = Enemy->GetComponentByClass<UCombatComponent>();
 	if (CombatComp)
 	{
-		CombatComp->StartHitCheckDefault();
+		CombatComp->CheckHitStartDefault();
 	}
 }
 
@@ -42,6 +42,6 @@ void UANS_Collision::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBa
 	UCombatComponent* CombatComp = Enemy->GetComponentByClass<UCombatComponent>();
 	if (CombatComp)
 	{
-		CombatComp->EndHitCheck();
+		CombatComp->CheckHitEnd();
 	}
 }

@@ -107,4 +107,4 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
 	TObjectPtr<UAnimMontage> AttackMontage;
-	};
+};

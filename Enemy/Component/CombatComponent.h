@@ -19,13 +19,10 @@ public:
 	void ExecuteAttack(UAnimMontage* AttackMontage, float PlayRate = 1.0f);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void StartHitCheck(float InRadius, float InDamage, FName InSocketName = TEXT("Muzzle"));
+	void CheckHitStart(float InRadius, float InDamage, FName InSocketName = TEXT("Muzzle"));
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void StartHitCheckDefault();
-
-	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void EndHitCheck();
+	void CheckHitEnd();
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void SetAttackData(float InRadius, float InDamage, FName InSocketName);
@@ -34,6 +31,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|VFX")
 	void SpawnShockwave(FVector Location, float Scale = 1.0f);
+
+	void CheckHitStartDefault();
 
 protected:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -60,10 +59,10 @@ protected:
 	bool bIsHitChecking = false;
 
 	UPROPERTY()
-	float CurrentRadius = 50.0f;
+	float CurrentRadius;
 
 	UPROPERTY()
-	float CurrentDamage = 10.0f;
+	float CurrentDamage;
 
 	UPROPERTY()
 	FName CurrentSocketName;
@@ -73,4 +72,7 @@ protected:
 
 	UPROPERTY()
 	TArray<TObjectPtr<AActor>> HitActors;
+
+	FTimerHandle HitStopTimerHandle;
+	bool bIsHitStopActive = false;
 };

@@ -3,8 +3,14 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/DamageEvents.h"
 #include "Enemy/EnemyBase.h"
+#include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Camera/CameraShakeBase.h"
+#include "GameFramework/PlayerController.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
 
 UCombatComponent::UCombatComponent()
 {
@@ -36,7 +42,12 @@ void UCombatComponent::ExecuteAttack(UAnimMontage* AttackMontage, float PlayRate
 	}
 }
 
-void UCombatComponent::StartHitCheck(float InRadius, float InDamage, FName InSocketName)
+void UCombatComponent::CheckHitStartDefault()
+{
+	CheckHitStart(CurrentRadius, CurrentDamage, CurrentSocketName);
+}
+
+void UCombatComponent::CheckHitStart(float InRadius, float InDamage, FName InSocketName)
 {
 	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
 	if (OwnerCharacter == nullptr)
@@ -55,12 +66,7 @@ void UCombatComponent::StartHitCheck(float InRadius, float InDamage, FName InSoc
 	SetComponentTickEnabled(true);
 }
 
-void UCombatComponent::StartHitCheckDefault()
-{
-	StartHitCheck(CurrentRadius, CurrentDamage, CurrentSocketName);
-}
-
-void UCombatComponent::EndHitCheck()
+void UCombatComponent::CheckHitEnd()
 {
 	bIsHitChecking = false;
 	SetComponentTickEnabled(false);
@@ -75,7 +81,35 @@ void UCombatComponent::SetAttackData(float InRadius, float InDamage, FName InSoc
 
 void UCombatComponent::TriggerHitStop(float Duration)
 {
+	UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return;
+	}
 
+	if (bIsHitStopActive) // 이미 HitStop 중이면 타이머만 연장
+	{
+		World->GetTimerManager().ClearTimer(HitStopTimerHandle);
+	}
+	else
+	{
+		bIsHitStopActive = true;
+		UGameplayStatics::SetGlobalTimeDilation(World, 0.05f);
+	}
+
+	World->GetTimerManager().SetTimer(
+		HitStopTimerHandle,
+		[this]()
+	{
+		if (UWorld* WorldInner = GetWorld())
+		{
+			UGameplayStatics::SetGlobalTimeDilation(WorldInner, 1.0f);
+		}
+		bIsHitStopActive = false;
+	},
+		Duration,
+		false
+	);
 }
 
 void UCombatComponent::ProcessHitCheck()
@@ -94,7 +128,7 @@ void UCombatComponent::ProcessHitCheck()
 
 	EDrawDebugTrace::Type DebugTrace = bShowDebugTrace ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None;
 
-	/** Sweep Trace: 이전 프레임 소켓 위치에서 현재 소켓 위치까지 구체로 스윕 */
+	// Sweep Trace: 이전 프레임 소켓 위치에서 현재 소켓 위치까지 구체로 스윕
 	bool bHit = UKismetSystemLibrary::SphereTraceMulti(
 		this,
 		PrevSocketLocation,
@@ -126,7 +160,43 @@ void UCombatComponent::ProcessHitCheck()
 
 void UCombatComponent::SpawnShockwave(FVector Location, float Scale)
 {
+	UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return;
+	}
 
+	// Shockwave Niagara
+	if (ShockwaveSystem)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			World,
+			ShockwaveSystem,
+			Location,
+			FRotator::ZeroRotator,
+			FVector(Scale),
+			true,
+			true,
+			ENCPoolMethod::AutoRelease,
+			true
+		);
+	}
+
+	// Distortion Niagara
+	if (DistortionSystem)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			World,
+			DistortionSystem,
+			Location,
+			FRotator::ZeroRotator,
+			FVector(Scale),
+			true,
+			true,
+			ENCPoolMethod::AutoRelease,
+			true
+		);
+	}
 }
 
 void UCombatComponent::ApplyDamage(AActor* Victim, const FHitResult& HitResult)
@@ -143,7 +213,7 @@ void UCombatComponent::ApplyDamage(AActor* Victim, const FHitResult& HitResult)
 	Victim->TakeDamage(CurrentDamage, DamageEvent, Instigator, OwnerActor);
 
 	// 역경직 (HitStop) 발생
-	TriggerHitStop(0.05f); // 0.05초 정도로 짧게
+	TriggerHitStop(0.05f);
 
 	// 충격파 및 왜곡 발생
 	SpawnShockwave(HitResult.ImpactPoint, 1.0f);
