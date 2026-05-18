@@ -33,12 +33,26 @@ EBTNodeResult::Type UBTTask_FindPatrolPos::ExecuteTask(UBehaviorTreeComponent& O
     }
 
     // HomePos(스폰 위치)를 기준으로 랜덤 위치 탐색
-    FVector HomePos = BBComponent->GetValueAsVector(BBKey::HomePos);
+   // FVector HomePos = BBComponent->GetValueAsVector(BBKey::HomePos);
+    FVector PatrolPos = BBComponent->GetValueAsVector(BBKey::PatrolPos);
     FNavLocation NextPatrolPos;
 
-    if (NavSystem->GetRandomPointInNavigableRadius(HomePos, PatrolRadius, NextPatrolPos))
+    if (NavSystem->GetRandomPointInNavigableRadius(PatrolPos, PatrolRadius, NextPatrolPos))
     {
-        BBComponent->SetValueAsVector(BBKey::PatrolPos, NextPatrolPos.Location);
+        FVector PatrolLocation = NextPatrolPos.Location;
+        // 현재 Pawn 높이로 보정
+        PatrolLocation.Z = ControllingPawn->GetActorLocation().Z;
+
+        BBComponent->SetValueAsVector(BBKey::PatrolPos, PatrolLocation);
+        DrawDebugSphere(
+            GetWorld(),
+            NextPatrolPos.Location,
+            30.f,
+            16,
+            FColor::Red,
+            false,
+            3.f
+        );
         return EBTNodeResult::Succeeded;
     }
 

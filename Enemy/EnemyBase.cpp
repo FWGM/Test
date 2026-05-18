@@ -167,10 +167,10 @@ void AEnemyBase::OnEnemyAttackAniFinished(EEnemyState NewState)
 		SetState(NewState);
 	}
 
-	if (OnAttackAnimationFinished.IsBound())
-	{
-		OnAttackAnimationFinished.Broadcast(NewState);
-	}
+	//if (OnAttackAnimationFinished.IsBound())
+	//{
+	//	OnAttackAnimationFinished.Broadcast(NewState);
+	//}
 }
 
 void AEnemyBase::OnDeath()
@@ -199,6 +199,7 @@ void AEnemyBase::SetState(EEnemyState NewState)
 	}
 
 	EEnemyState OldState = CurrentState;
+	UE_LOG(LogTemp, Warning, TEXT("State Change %d -> %d"),(uint8)CurrentState,(uint8)NewState);
 	CurrentState = NewState;
 
 	UpdateBlackBoardState();

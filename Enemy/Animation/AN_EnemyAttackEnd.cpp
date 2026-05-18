@@ -20,6 +20,7 @@ void UAN_EnemyAttackEnd::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceB
     {
         if (Enemy->OnAttackAnimationFinished.IsBound())
         {
+            UE_LOG(LogTemp, Warning, TEXT("Attack Notify EndState: %d"), (uint8)TargetEndState);
             Enemy->OnAttackAnimationFinished.Broadcast(TargetEndState);
         }
     }
